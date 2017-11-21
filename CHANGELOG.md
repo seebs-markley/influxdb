@@ -13,6 +13,7 @@
 - [#9065](https://github.com/influxdata/influxdb/pull/9065): Refuse extra arguments to influx CLI
 - [#9058](https://github.com/influxdata/influxdb/issues/9058): Fix space required after regex operator. Thanks @stop-start!
 - [#9109](https://github.com/influxdata/influxdb/issues/9109): Fix: panic: sync: WaitGroup is reused before previous Wait has returned
+- [#9144](https://github.com/influxdata/influxdb/issues/9144): Fix query compilation so multiple nested distinct calls is allowable
 
 ## v1.4.2 [2017-11-15]
 
