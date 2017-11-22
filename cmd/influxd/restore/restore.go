@@ -49,6 +49,7 @@ type Command struct {
 	restoreRetention    string
 	shard               string
 	legacy              bool
+	online              bool
 	manifest            backup_util.Manifest
 
 	// TODO: when the new meta stuff is done this should not be exported or be gone
@@ -75,24 +76,23 @@ func (cmd *Command) Run(args ...string) error {
 		return err
 	}
 
-	if !cmd.legacy {
+	if !cmd.legacy || cmd.online {
+		if !cmd.legacy {
+			if filepath.Ext(cmd.backupFilesPath) != ".manifest" {
+				return fmt.Errorf("when using -enterprise, must provide path to a manifest file")
+			}
+			f, err := os.Open(cmd.backupFilesPath)
+			if err != nil {
+				return err
+			}
 
-		fmt.Println(cmd.backupFilesPath)
-		if filepath.Ext(cmd.backupFilesPath) != ".manifest" {
-			return fmt.Errorf("when using -enterprise, must provide path to a manifest file")
+			if err := json.NewDecoder(f).Decode(&cmd.manifest); err != nil {
+				return fmt.Errorf("read manifest: %v", err)
+			}
+			f.Close()
+			cmd.backupFilesPath = filepath.Dir(cmd.backupFilesPath)
 		}
-		f, err := os.Open(cmd.backupFilesPath)
-		if err != nil {
-			return err
-		}
-
-		if err := json.NewDecoder(f).Decode(&cmd.manifest); err != nil {
-			return fmt.Errorf("read manifest: %v", err)
-		}
-		f.Close()
-		cmd.backupFilesPath = filepath.Dir(cmd.backupFilesPath)
-
-		err = cmd.updateMetaLive()
+		err := cmd.updateMetaLive()
 		if err != nil {
 			cmd.StderrLogger.Printf("error updating meta: %v", err)
 		}
@@ -131,6 +131,7 @@ func (cmd *Command) parseFlags(args []string) error {
 	fs.StringVar(&cmd.backupRetention, "rp", "", "")
 	fs.StringVar(&cmd.restoreRetention, "newrp", "", "")
 	fs.StringVar(&cmd.shard, "shard", "", "")
+	fs.BoolVar(&cmd.online, "online", false, "")
 	fs.BoolVar(&cmd.legacy, "legacy", false, "")
 	fs.SetOutput(cmd.Stdout)
 	fs.Usage = cmd.printUsage
@@ -147,7 +148,7 @@ func (cmd *Command) parseFlags(args []string) error {
 		return fmt.Errorf("path with backup files required")
 	}
 
-	if !cmd.legacy {
+	if !cmd.legacy || cmd.online {
 		// validate the arguments
 		if cmd.sourceDatabase == "" {
 			return fmt.Errorf("-db is a required parameter")
@@ -158,11 +159,11 @@ func (cmd *Command) parseFlags(args []string) error {
 		}
 
 		if cmd.metadir != "" {
-			return fmt.Errorf("legacy parameter metadir found, consider using -legacy flag")
+			return fmt.Errorf("offline parameter metadir found, consider using -legacy flag")
 		}
 
 		if cmd.datadir != "" {
-			return fmt.Errorf("legacy parameter datadir found, consider using -legacy flag")
+			return fmt.Errorf("offline parameter datadir found, consider using -legacy flag")
 		}
 
 		if cmd.restoreRetention == "" {
@@ -634,36 +635,51 @@ func (cmd *Command) unpackFile(tr *tar.Reader, fileName string) error {
 // printUsage prints the usage message to STDERR.
 func (cmd *Command) printUsage() {
 	fmt.Fprintf(cmd.Stdout, `Uses backups from the PATH to restore the metastore, databases,
-retention policies, or specific shards.  Offline mode requires the instance to be stopped before running, and will wipe
-	all databases from the system (e.g., for disaster recovery).  Online mode requires the instance to be running,
+retention policies, or specific shards.  Legacy mode requires the instance to be stopped before running, and will wipe
+	all databases from the system (e.g., for disaster recovery).  The improved online mode requires the instance to be running,
 	and the database name used must not already exist.
 
-Usage: influxd restore [flags] PATH
+Usage: influxd restore [-legacy] [flags] PATH
 
-Offline (legacy) mode:
+Legacy mode consumes files in the pre-1.5 file format. PATH is a directory containing the backup data
+
+Options:
     -metadir <path>
             Optional. If set the metastore will be recovered to the given path.
     -datadir <path>
             Optional. If set the restore process will recover the specified
             destinationDatabase, retention policy or shard to the given directory.
     -database <name>
-            Optional. Required if no metadir given. Will restore the destinationDatabase
+            Optional. Required if no metadir given. Will restore the database's
             TSM files.
     -retention <name>
-            Optional. If given, destinationDatabase is required. Will restore the retention policy's
+            Optional. If given, -database is required. Will restore the retention policy's
             TSM files.
     -shard <id>
-            Optional. If given, destinationDatabase and retention are required. Will restore the shard's
+            Optional. If given, -database and -retention are required. Will restore the shard's
             TSM files.
-Online import mode:
 	-online
-		    Optional. If set, the update will be done on a live influxdb instance.  All other databases in the system
-	        will be unaltered.
-	-origindb
-	        Required if -online set.  The name of the archived database that you want to import.
-	-newdb
-	        Optional, used only if -online set.  The name of the database in which the archived data will be imported.
-	        If not given, then the value of -origindb is used.  The new database name must be unique to the target system.
+	        Optional. If given, the restore will be done using the new process, detailed below.  All above legacy
+	        arguments are ignored.
+
+Default Restore mode consumes files in an improved format that includes a file manifest.  PATH should indicate
+the manifest file.
+
+Options:
+	-host  <host:port>
+            The host to connect to and perform a snapshot of. Defaults to '127.0.0.1:8088'.
+	-db    <name>
+	        Identifies the database from the backup that will be restored.
+	-newdb <name>
+	        The name of the database into which the archived data will be imported on the target system.
+	        If not given, then the value of -db is used.  The new database name must be unique to the target system.
+	-rp    <name>
+	        Identifies the retention policy from the backup that will be restored.  Requires that -db is set.
+	-newrp <name>
+	        The name of the retention policy that will be created on the target system. Requires that -rp is set.
+	        If not given, the value of -rp is used.
+	-shard <id>
+	        Optional.  If given, -db and -rp are required.  Will restore the shard's TSM files.
 
 `)
 }

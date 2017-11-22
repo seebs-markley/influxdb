@@ -493,7 +493,6 @@ func (cmd *Command) requestInfo(request *snapshotter.Request) (*snapshotter.Resp
 
 // printUsage prints the usage message to STDERR.
 func (cmd *Command) printUsage() {
-
 	fmt.Fprintf(cmd.Stdout, `Downloads a file level age-based snapshot of a data node and saves it to disk.
 
 Usage: influxd backup [flags] PATH
@@ -513,6 +512,8 @@ Usage: influxd backup [flags] PATH
             All points earlier than this time stamp will be excluded from the export. Not compatible with -since.
 	-end <2015-12-24T08:12:23Z>
             All points later than this time stamp will be excluded from the export. Not compatible with -since.
+	-legacy
+	        Generate backup files in the format used for influxdb 1.4 and earlier.
 
 `)
 

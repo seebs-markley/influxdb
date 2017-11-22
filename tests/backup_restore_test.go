@@ -84,11 +84,11 @@ func TestServer_BackupAndRestore(t *testing.T) {
 			t.Fatal(err)
 		}
 		hostAddress := net.JoinHostPort("localhost", port)
-		if err := cmd.Run("-host", hostAddress, "-database", "mydb", fullBackupDir); err != nil {
+		if err := cmd.Run("-legacy", "-host", hostAddress, "-database", "mydb", fullBackupDir); err != nil {
 			t.Fatalf("error backing up: %s, hostAddress: %s", err.Error(), hostAddress)
 		}
 
-		if err := cmd.Run("-host", hostAddress, "-database", "mydb", "-start", "1970-01-01T00:00:00.001Z", "-end", "1970-01-01T00:00:00.007Z", partialBackupDir); err != nil {
+		if err := cmd.Run("-legacy", "-host", hostAddress, "-database", "mydb", "-start", "1970-01-01T00:00:00.001Z", "-end", "1970-01-01T00:00:00.007Z", partialBackupDir); err != nil {
 			t.Fatalf("error backing up: %s, hostAddress: %s", err.Error(), hostAddress)
 		}
 	}()
@@ -104,7 +104,7 @@ func TestServer_BackupAndRestore(t *testing.T) {
 	// restore
 	cmd := restore.NewCommand()
 
-	if err := cmd.Run("-metadir", config.Meta.Dir, "-datadir", config.Data.Dir, "-database", "mydb", fullBackupDir); err != nil {
+	if err := cmd.Run("-legacy", "-metadir", config.Meta.Dir, "-datadir", config.Data.Dir, "-database", "mydb", fullBackupDir); err != nil {
 		t.Fatalf("error restoring: %s", err.Error())
 	}
 
@@ -131,7 +131,7 @@ func TestServer_BackupAndRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 	hostAddress := net.JoinHostPort("localhost", port)
-	cmd.Run("-host", hostAddress, "-online", "-newdb", "mydbbak", "-origindb", "mydb", partialBackupDir)
+	cmd.Run("-legacy", "-host", hostAddress, "-online", "-newdb", "mydbbak", "-db", "mydb", partialBackupDir)
 	res, err = s.Query(`show databases`)
 
 	// wait for the import to finish, and unlock the shard engine.
