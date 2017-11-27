@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"fmt"
 	"github.com/influxdata/influxdb/cmd/influxd/backup"
 	"github.com/influxdata/influxdb/cmd/influxd/restore"
 )
@@ -145,8 +144,6 @@ func TestServer_BackupAndRestore(t *testing.T) {
 	if res != partialExpected {
 		t.Fatalf("query results wrong:\n\texp: %s\n\tgot: %s", partialExpected, res)
 	}
-
-	fmt.Printf("result: %v", res)
 }
 
 func freePort() string {

@@ -870,10 +870,8 @@ func (e *Engine) overlay(r io.Reader, basePath string, asNew bool) error {
 		tr := tar.NewReader(r)
 		for {
 			if fileName, err := e.readFileFromBackup(tr, basePath, asNew); err == io.EOF {
-				fmt.Println(err)
 				break
 			} else if err != nil {
-				fmt.Println(err)
 				return nil, err
 			} else if fileName != "" {
 				newFiles = append(newFiles, fileName)
